@@ -12,17 +12,24 @@ echo "Repositório: $REPO"
 command -v keytool >/dev/null 2>&1 || { echo "Instalando Java..."; sudo apt-get update -qq && sudo apt-get install -y -qq default-jre-headless; }
 
 # 2) Permissão do gh para mexer em secrets e rodar workflows (o token padrão do Codespace não tem)
-if ! gh api "repos/$REPO/actions/secrets/public-key" >/dev/null 2>&1; then
-  echo "Faça o login do GitHub (abra o link, cole o código e autorize):"
-  unset GITHUB_TOKEN GH_TOKEN
-  gh auth login -h github.com -p https -w -s repo,workflow || { echo "Login não concluído."; exit 1; }
+export GIT_TERMINAL_PROMPT=0
+API="repos/$REPO/actions/secrets/public-key"
+if ! gh api "$API" >/dev/null 2>&1; then
+  if env -u GITHUB_TOKEN -u GH_TOKEN gh api "$API" >/dev/null 2>&1; then
+    unset GITHUB_TOKEN GH_TOKEN                      # já existe um login seu salvo
+  else
+    echo "Faça o login do GitHub (abra o link, cole o código e autorize):"
+    unset GITHUB_TOKEN GH_TOKEN
+    gh auth login -h github.com -p https -w -s repo,workflow || { echo "Login não concluído."; exit 1; }
+  fi
 fi
+gh auth setup-git >/dev/null 2>&1                    # o git push passa a usar o seu login
 
 # 3) Envia o código para o GitHub (o workflow precisa estar lá)
 if [ -n "$(git status --porcelain)" ]; then
   git add -A && git commit -q -m "Atualização do app" && echo "Alterações salvas."
 fi
-git push -q 2>/dev/null || git push -q -u origin HEAD || echo "Aviso: não consegui enviar (git push). Confira se o repositório está atualizado."
+git push -q 2>/dev/null || git push -q -u origin HEAD || { echo "Não consegui enviar o código (git push). Rode: gh auth setup-git && git push"; exit 1; }
 
 # 4) Chave de assinatura: cria uma vez e grava os 3 secrets
 if gh secret list -R "$REPO" 2>/dev/null | grep -q '^KEYSTORE_BASE64'; then
