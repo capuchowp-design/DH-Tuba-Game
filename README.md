@@ -9,7 +9,7 @@ Game estilo Guitar Hero para aprender os hinos na tuba.
   - Ao acertar, a nota toca (som de tuba).
 - **Pistões:** tuba de **3** ou **4** pistões (a digitação muda; com 4 alcança notas mais graves).
 - **Afinação:** Si♭ (BBb), Dó (CC), Mi♭ (EEb) ou Fá (F). Mesma digitação, com o alcance deslocado.
-- **Vozes:** soprano, contralto, tenor ou baixo. Todas soam uma oitava abaixo do escrito e são encaixadas no alcance da tuba. As outras vozes tocam sozinhas como acompanhamento (pode desligar).
+- **Vozes:** a voz padrão é o **baixo**; dá para escolher soprano, contralto ou tenor ao abrir cada hino (ou nas Configurações). Todas soam uma oitava abaixo do escrito e são encaixadas no alcance da tuba. As outras vozes tocam sozinhas como acompanhamento (pode desligar).
 - **Modos:** Normal (digitação) e Fácil (basta tocar no tempo). Velocidade do hino de 40% a 120%, tolerância de tempo, velocidade da queda, nomes das notas (Dó Ré Mi ou C D E), ajuste de atraso do som.
 - **Partitura** em clave de Fá no topo, acompanhando a música.
 - **Teclado (computador):** J K L ; (ou 1 2 3 4) = pistos, Esc = pausa.

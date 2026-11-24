@@ -489,7 +489,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),2600);}
 
 /* ---------- configurações ---------- */
-const SET_DEF={voice:0,valves:4,key:'bb',speed:100,mode:'normal',fall:'normal',win:'normal',names:'solfa',backing:true,backVol:55,vol:90,staff:true,vibrate:true,latency:0};
+const SET_DEF={voice:3,valves:4,key:'bb',speed:100,mode:'normal',fall:'normal',win:'normal',names:'solfa',backing:true,backVol:55,vol:90,staff:true,vibrate:true,latency:0};
 const S=Object.assign({},SET_DEF,store.get('dht_set',{}));
 const saveS=()=>store.set('dht_set',S);
 
@@ -647,7 +647,7 @@ async function openReady(h){
         CUR={h,sc,vs,vid:null,spd:S.speed/100,mode:S.mode};
         // voz padrão (se o hino tiver)
         const pref=['Soprano','Contralto','Tenor','Baixo'][S.voice];
-        const m=vs.find(v=>v.name===pref);CUR.vid=m?m.id:vs[0].id;
+        const m=vs.find(v=>v.name===pref);CUR.vid=m?m.id:(S.voice===3?vs[vs.length-1].id:vs[0].id);   // sem a voz pedida: baixo = última voz do hino
         $('rN').textContent=String(h.n).padStart(3,'0');$('rT').textContent=h.t;
         drawReady();
         $('mReady').classList.add('on');
