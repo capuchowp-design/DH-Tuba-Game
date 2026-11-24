@@ -3,3 +3,6 @@ www/
 android/
 *.keystore
 ks.txt
+dh-keystore-backup/
+apk-out/
+*.keystore
