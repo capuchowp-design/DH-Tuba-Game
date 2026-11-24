@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # Gera o APK pelo GitHub Actions, criando e configurando os secrets de assinatura sozinho.
-# Use no terminal do Codespace, dentro da pasta do repositório:  bash gerar-apk.sh
+# Use no terminal do Codespace, dentro da pasta do repositório:
+#   bash gerar-apk.sh                      -> APK com Pix (site/APKPure)
+#   bash gerar-apk.sh play                 -> AAB da Google Play com anúncios de TESTE (faixa interna)
+#   bash gerar-apk.sh play producao        -> AAB da Google Play de PRODUÇÃO (precisa dos IDs reais do AdMob)
 set -uo pipefail
 
 REPO=$(git config --get remote.origin.url | sed -E 's#.*github\.com[:/]##; s#\.git$##')
 WF=build-apk.yml
+CANAL="${1:-apkpure}"; [ "$CANAL" = play ] || CANAL=apkpure
+TESTE=true; [ "${2:-}" = producao ] && TESTE=false
 KS_DIR="$HOME/dh-keystore"
 echo "Repositório: $REPO"
 
@@ -54,8 +59,8 @@ fi
 
 # 5) Dispara o build e espera terminar
 PREV=$(gh run list -R "$REPO" --workflow="$WF" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null)
-gh workflow run "$WF" -R "$REPO" || { echo "Não consegui iniciar o workflow ($WF). Ele está na branch principal?"; exit 1; }
-echo "Build iniciado. Aguardando..."
+gh workflow run "$WF" -R "$REPO" -f canal="$CANAL" -f anuncios_teste="$TESTE" || { echo "Não consegui iniciar o workflow ($WF). Ele está na branch principal?"; exit 1; }
+echo "Build iniciado (canal: $CANAL, anúncios de teste: $TESTE). Aguardando..."
 RUN=""
 for i in $(seq 1 30); do
   sleep 3
@@ -67,7 +72,7 @@ gh run watch "$RUN" -R "$REPO" --exit-status || { echo "O build falhou. Veja: gh
 # 6) Baixa o APK
 rm -rf apk-out && gh run download "$RUN" -R "$REPO" -D apk-out
 echo
-echo "APK pronto:"; ls -1 apk-out/*/*.apk 2>/dev/null || ls -1 apk-out/*.apk
+echo "Arquivo pronto:"; find apk-out -type f \( -name '*.apk' -o -name '*.aab' \)
 echo
 echo "Para baixar: no painel de arquivos do Codespace, clique com o botão direito no APK > Download."
 echo "GUARDE a pasta $KS_DIR (chave + senha): sem ela você não consegue atualizar o app depois. Não suba para o GitHub."

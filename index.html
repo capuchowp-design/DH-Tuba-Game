@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="pro-config.js"></script>
 <script src="lib/Tone.js"></script>
 <script>window.Tone||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"><\/script>')</script>
 <style>
@@ -110,6 +111,23 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .howt b{color:var(--gold2)}
 .load{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;z-index:60;color:var(--gold2);font-weight:700}
 .load.on{display:flex}
+/* PRO */
+.hino small.lock{color:var(--mut);font-size:.72rem;letter-spacing:0}
+.pro-top{background:#e08a4a22;border:1px solid var(--gold);border-radius:10px;padding:10px 12px;font-weight:700;margin-bottom:10px;text-align:left}
+.pro-p{font-size:.85rem;line-height:1.5;margin:0 0 12px;text-align:left}
+.pro-small{font-size:.74rem;color:var(--mut);margin-top:6px;line-height:1.45}
+.pro-warn{color:#ff9a6a;font-weight:600}
+.pro-ok{font-size:1.15rem;font-weight:800;color:var(--ok);margin-bottom:8px}
+.pro-step{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line);font-size:.85rem;text-align:left}
+.pro-step>span{flex:0 0 26px;height:26px;border-radius:50%;background:var(--gold);color:#2a1204;font-weight:800;display:flex;align-items:center;justify-content:center}
+.pro-step>div{flex:1;min-width:0}
+.pro-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.pro-btn{background:linear-gradient(#f0a064,#b5602a);color:#2a1204;border:none;border-radius:10px;padding:10px 14px;font-weight:800;font-size:.85rem;text-decoration:none;display:inline-block}
+.pro-btn.sec{background:#12211a;color:var(--gold2);border:1px solid var(--line)}
+.pro-btn:disabled{opacity:.6}
+.pro-code{flex:1;min-width:140px;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:#0b1510;color:var(--txt);font:700 15px monospace;letter-spacing:1px;text-transform:uppercase;-webkit-user-select:text;user-select:text}
+.pro-msg{font-size:.78rem;margin-top:6px;min-height:16px;color:var(--mut);text-align:left}
+.pro-msg.err{color:var(--bad);font-weight:600}
 </style>
 </head>
 <body>
@@ -121,13 +139,14 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   <button class="big" id="bPlay">▶ Escolher hino</button>
   <button class="big alt" id="bLast" style="display:none"></button>
   <button class="big alt" id="bSet">⚙ Configurações</button>
+  <button class="big alt" id="bPro">⭐ Pro</button>
   <button class="big alt" id="bHow">❓ Como jogar</button>
   <div class="foot">Hinos 1 a 480 · 3 ou 4 pistões · Si♭, Dó, Mi♭ ou Fá</div>
 </div>
 
 <!-- HINOS -->
 <div id="sHinos" class="screen bg">
-  <div class="top"><button class="ibtn" data-back>‹</button><input id="q" class="search" type="search" placeholder="Número ou título do hino" inputmode="search" autocomplete="off"></div>
+  <div class="top"><button class="ibtn" data-back>‹</button><input id="q" class="search" type="search" placeholder="Número ou título do hino" inputmode="search" autocomplete="off"><button class="ibtn" id="hPro" aria-label="Pro">⭐</button></div>
   <div class="scroll" id="hList"></div>
 </div>
 
@@ -209,6 +228,15 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
       <li>No teclado: <b>J K L ;</b> (ou 1 2 3 4) = pistos.</li>
     </ol>
     <div class="row"><button class="big" id="hClose">Entendi</button></div>
+  </div>
+</div>
+
+<!-- PRO -->
+<div id="mPro" class="modal">
+  <div class="panel">
+    <h2>⭐ DH Tuba Pro</h2>
+    <div id="proBody" style="margin-top:12px"></div>
+    <div class="row"><button class="big alt" id="proClose">Fechar</button></div>
   </div>
 </div>
 
@@ -553,7 +581,8 @@ async function renderHinos(){
     if(!list.length){box.innerHTML='<div class="empty">Nenhum hino encontrado.</div>';return;}
     const fr=document.createDocumentFragment();
     list.forEach(h=>{const b=document.createElement('button');b.className='hino';const st=bestStars(h.n);
-        b.innerHTML='<b>'+String(h.n).padStart(3,'0')+'</b><span></span>'+(st?'<small>'+'★'.repeat(st)+'</small>':'');
+        const lock=!PRO.ok&&h.n>proFree()&&!proAdActive(h.n);
+        b.innerHTML='<b>'+String(h.n).padStart(3,'0')+'</b><span></span>'+(lock?'<small class="lock">🔒 '+PRO_CFG.previewSec+'s</small>':'')+(st?'<small>'+'★'.repeat(st)+'</small>':'');
         b.children[1].textContent=h.t;b.onclick=()=>openReady(h);fr.appendChild(b);});
     box.appendChild(fr);
 }
@@ -663,6 +692,7 @@ async function openReady(h){
         $('rN').textContent=String(h.n).padStart(3,'0');$('rT').textContent=h.t;
         drawReady();
         $('mReady').classList.add('on');
+        if(proLimit()<Infinity)toast('Prévia de '+PRO_CFG.previewSec+' s · hinos 1 a '+proFree()+' são completos · toque em ⭐ Pro');
         initAudio().then(setBadge);setBadge();
     }catch(e){toast('Erro: '+e.message);}
     $('load').classList.remove('on');
@@ -832,6 +862,7 @@ function frame(){
     $('gProg').style.width=Math.max(0,Math.min(100,t/G.end*100))+'%';
     const rest=G.cdEnd-t;$('cdn').textContent=rest>0?Math.ceil(rest):'';
     if(t>G.end){finishGame();return;}
+    if(t>=proLimit()){proLimitHit();return;}
     rafId=requestAnimationFrame(frame);
 }
 function drawHighway(t){
@@ -991,6 +1022,270 @@ function renderSettings(){
     const d=card('Recordes');const b=document.createElement('button');b.className='danger';b.textContent='Apagar todos os recordes';b.onclick=()=>{if(confirm('Apagar todos os recordes e estrelas?')){store.set('dht_rec',{});toast('Recordes apagados');}};d.appendChild(b);
 }
 
+/* ======================== MODO PRO (grátis x pro) ========================
+   Grátis: hinos 1..freeHinos completos; nos demais o jogo para após PRO_CFG.previewSec s e abre a tela Pro.
+   Site/PWA e APK (modo 'pix'): Pro com código de uso único (1 código = 1 aparelho) validado na planilha Google (Apps Script).
+   Google Play (modo 'play'): anúncio premiado libera 1 hino por PRO_CFG.adHoras h; Pro opcional pelo Google Play Billing. */
+const PRO_CFG=window.PRO_CFG||{app:'tuba',modo:'pix',produtoId:'pro_desbloqueio',scriptUrl:'',pixKey:'',pixName:'',pixCity:'',price:0,whatsapp:'',freeHinos:50,previewSec:15};
+const PRO={ok:false,code:'',dev:'',last:0,native:false,devId:''};
+function proSave(){ try{ if(PRO.ok) localStorage.setItem('dhtProState',JSON.stringify({code:PRO.code,dev:PRO.dev,last:PRO.last})); else localStorage.removeItem('dhtProState'); }catch(e){} }
+function proLoad(){ try{ const s=JSON.parse(localStorage.getItem('dhtProState')||'null'); if(s&&s.code){ PRO.ok=true; PRO.code=s.code; PRO.dev=s.dev||''; PRO.last=s.last||0; } }catch(e){} }
+const proTxt=s=>{ const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; };
+const proFree=()=>PRO_CFG.freeHinos;
+// ---- Anúncio premiado (AdMob, só no modo 'play'): libera UM hino por PRO_CFG.adHoras hora(s) ----
+function proAdMap(){ if(!PRO.ad){ try{ PRO.ad=JSON.parse(localStorage.getItem('dhtProAd')||'{}')||{}; }catch(e){ PRO.ad={}; } } return PRO.ad; }
+function proAdActive(n){ const t=proAdMap()[n]; return !!t&&Date.now()<t; }
+function proAdSave(){ try{ const m=proAdMap(), now=Date.now(); Object.keys(m).forEach(k=>{ if(m[k]<now) delete m[k]; }); localStorage.setItem('dhtProAd',JSON.stringify(m)); }catch(e){} }
+function proAds(){ try{ const C=window.Capacitor; return (PRO_CFG.modo==='play'&&PRO_CFG.adRewardedId&&C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins&&C.Plugins.AdMob)||null; }catch(e){ return null; } }
+let proAdInit=null;
+function proAdStart(){
+    if(proAdInit) return proAdInit;
+    const A=proAds();
+    proAdInit=(async()=>{
+        await A.initialize({initializeForTesting:!!PRO_CFG.adsTeste});
+        try{ const ci=await A.requestConsentInfo(); if(ci&&ci.isConsentFormAvailable&&String(ci.status).toUpperCase()==='REQUIRED') await A.showConsentForm(); }catch(e){}   // consentimento (UE/Reino Unido), se configurado no AdMob
+    })().catch(e=>{ proAdInit=null; throw e; });
+    return proAdInit;
+}
+// resolve se o usuário assistiu até o fim (hino liberado); lança erro caso contrário
+async function proAdWatch(n){
+    const A=proAds(); if(!A) throw new Error('indisponivel');
+    await proAdStart();
+    let rewarded=false; const subs=[];
+    try{
+        try{ subs.push(await A.addListener('onRewardedVideoAdReward',()=>{ rewarded=true; })); }catch(e){}
+        await A.prepareRewardVideoAd({adId:PRO_CFG.adRewardedId,isTesting:!!PRO_CFG.adsTeste});
+        const r=await A.showRewardVideoAd();
+        if(r&&(r.amount!==undefined||r.type!==undefined)) rewarded=true;
+    } finally { subs.forEach(sb=>{ try{ sb.remove(); }catch(e){} }); }
+    if(!rewarded) throw new Error('nao_assistiu');
+    proAdMap()[n]=Date.now()+(PRO_CFG.adHoras||1)*3600e3; proAdSave();
+}
+// ---- Google Play Billing (modo 'play': app instalado pela Play Store) ----
+// A Play guarda quem comprou: o Pro volta sozinho ao reinstalar ou trocar de aparelho com a mesma conta Google.
+function proBilling(){ try{ const C=window.Capacitor; return (C&&C.isNativePlatform&&C.isNativePlatform()&&C.Plugins&&C.Plugins.NativePurchases)||null; }catch(e){ return null; } }
+function proPlay(){ return PRO_CFG.modo==='play'; }
+// true/false se conseguiu consultar a Play; lança erro se não conseguiu (sem conexão etc.)
+async function proPlayHas(){
+    const B=proBilling(); if(!B) throw new Error('sem_billing');
+    const r=await B.getPurchases({productType:'inapp'});
+    const list=Array.isArray(r)?r:(r&&r.purchases)||[];
+    return list.some(p=>{ if(!p||p.productIdentifier!==PRO_CFG.produtoId) return false; const st=String(p.purchaseState==null?'':p.purchaseState).toUpperCase(); return st!=='2'&&st!=='PENDING'; });
+}
+function proPlayOn(){ PRO.ok=true; PRO.code='GOOGLE PLAY'; PRO.dev=''; PRO.last=Date.now(); proSave(); proRefresh(); }
+async function proInitPlay(){
+    proLoad(); proRefresh();
+    if(!proBilling()) return;
+    try{
+        const has=await proPlayHas();
+        if(has&&!PRO.ok) proPlayOn();
+        else if(!has&&PRO.ok){ PRO.ok=false; proSave(); proRefresh(); }   // reembolso/estorno
+    }catch(e){}                                                              // sem conexão com a Play: mantém o que está salvo
+}
+function proMsgTop(){ return proReason==='fim'?'Fim da prévia de '+PRO_CFG.previewSec+' segundos deste hino.':proReason==='hino'?'Este hino tem só '+PRO_CFG.previewSec+' segundos de prévia grátis.':''; }
+function proHeadTxt(){ return '<b>Grátis:</b> hinos 1 a '+proFree()+' completos e '+PRO_CFG.previewSec+' s de prévia nos demais.<br>'; }
+async function proRenderPlay(){
+    const box=$('proBody'); if(!box) return;
+    if(PRO.ok){
+        box.innerHTML='<div class="pro-ok">✓ Pro ativo</div><p class="pro-p">Todos os hinos estão liberados e completos.</p><p class="pro-p pro-small">A compra fica ligada à sua conta Google. Se reinstalar o app ou trocar de aparelho, use “Restaurar compra”.</p><div class="pro-row"><button class="pro-btn sec" id="proRestore">Restaurar compra</button></div><div class="pro-msg" id="proMsg"></div>';
+    } else {
+        const n=CUR&&CUR.h?CUR.h.n:null;
+        const canAd=!!proAds()&&n!=null&&n>proFree()&&!proAdActive(n);
+        const canBuy=PRO_CFG.playCompra!==false&&!!proBilling();
+        let price=''; if(canBuy){ try{ const r=await proBilling().getProduct({productIdentifier:PRO_CFG.produtoId,productType:'inapp'}); price=(r&&r.product&&r.product.priceString)||''; }catch(e){} }
+        const mt=proMsgTop();
+        box.innerHTML=(mt?'<div class="pro-top">'+mt+'</div>':'')+
+          '<p class="pro-p">'+proHeadTxt()+'<b>Liberar um hino:</b> assista a um anúncio em vídeo e jogue o hino completo por '+(PRO_CFG.adHoras||1)+' h.'+(canBuy?'<br><b>Pro:</b> todos os hinos completos, sem anúncios. Pagamento único pela Google Play'+(price?' · <b class="pro-price"></b>':'')+'.':'')+'</p>'+
+          (canAd?'<div class="pro-row"><button class="pro-btn" id="proAdBtn">▶ Ver anúncio e liberar o hino '+n+' por '+(PRO_CFG.adHoras||1)+' h</button></div>':(n!=null&&n>proFree()&&!proAds()?'<p class="pro-p pro-small">Anúncio indisponível neste aparelho agora.</p>':''))+
+          (canBuy?'<div class="pro-row"><button class="pro-btn sec" id="proBuy">Comprar Pro</button><button class="pro-btn sec" id="proRestore">Restaurar compra</button></div>':'')+
+          '<div class="pro-msg" id="proMsg"></div>';
+        const pe=box.querySelector('.pro-price'); if(pe) pe.textContent=price;
+        const adb=$('proAdBtn');
+        if(adb) adb.onclick=async()=>{
+            const m=$('proMsg'); m.textContent='Carregando o anúncio…'; m.className='pro-msg'; adb.disabled=true;
+            try{
+                await proAdWatch(n);
+                toast('Hino '+n+' liberado por '+(PRO_CFG.adHoras||1)+' h ✓'); proRefresh(); proClose();
+            }catch(e){
+                adb.disabled=false;
+                m.textContent=(e&&e.message==='nao_assistiu')?'Assista ao anúncio até o fim para liberar o hino.':'Anúncio indisponível agora. Verifique a internet e tente de novo mais tarde.'; m.className='pro-msg err';
+            }
+        };
+        const buy=$('proBuy');
+        if(buy) buy.onclick=async()=>{
+            const m=$('proMsg'); m.textContent='Abrindo a Google Play…'; m.className='pro-msg'; buy.disabled=true;
+            try{
+                await proBilling().purchaseProduct({productIdentifier:PRO_CFG.produtoId,productType:'inapp',quantity:1});
+                proPlayOn(); toast('Pro ativado! Obrigado pelo apoio ✓'); proRender();
+            }catch(e){
+                buy.disabled=false; const t=String((e&&e.message)||e);
+                m.textContent=/cancel/i.test(t)?'Compra cancelada.':'Não foi possível concluir a compra. Tente de novo.'; m.className='pro-msg err';
+            }
+        };
+    }
+    const rb=$('proRestore');
+    if(rb) rb.onclick=async()=>{
+        const m=$('proMsg'); m.textContent='Consultando a Google Play…'; m.className='pro-msg';
+        try{
+            if(await proPlayHas()){ proPlayOn(); toast('Compra restaurada ✓'); proRender(); }
+            else { m.textContent='Nenhuma compra do Pro encontrada nesta conta Google.'; m.className='pro-msg err'; }
+        }catch(e){ m.textContent='Sem conexão com a Google Play. Tente de novo.'; m.className='pro-msg err'; }
+    };
+}
+/*PIX-JS-START*/
+// ---- Site/PWA e APK (modo 'pix'): código de uso único, 1 código = 1 aparelho, validado na planilha Google ----
+async function proSha(txt){
+    try{ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)); return [...new Uint8Array(b)].slice(0,12).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+    catch(e){ let h=0; for(const ch of txt) h=(h*31+ch.charCodeAt(0))|0; return 'x'+(h>>>0).toString(16); }
+}
+// identificador do aparelho: Android ID (app instalado; sobrevive a desinstalar/limpar dados) ou impressão digital do navegador
+async function proDevice(){
+    if(PRO.devId) return PRO.devId;
+    const C=window.Capacitor;
+    if(C&&C.isNativePlatform&&C.isNativePlatform()){
+        try{ const D=C.Plugins&&C.Plugins.Device; if(D&&D.getId){ const r=await D.getId(); const id=r&&(r.identifier||r.uuid); if(id){ PRO.native=true; return PRO.devId='n-'+id; } } }catch(e){}
+    }
+    let st=''; try{ st=localStorage.getItem('dhtProDev')||''; }catch(e){}
+    if(!st){
+        let gl=''; try{ const c=document.createElement('canvas').getContext('webgl'), x=c&&c.getExtension('WEBGL_debug_renderer_info'); if(x) gl=c.getParameter(x.UNMASKED_RENDERER_WEBGL)+'|'+c.getParameter(x.UNMASKED_VENDOR_WEBGL); }catch(e){}
+        const fp=[navigator.platform,screen.width+'x'+screen.height,window.devicePixelRatio,Intl.DateTimeFormat().resolvedOptions().timeZone,navigator.language,navigator.hardwareConcurrency,navigator.deviceMemory,gl].join('|');
+        st='w-'+await proSha(fp); try{ localStorage.setItem('dhtProDev',st); }catch(e){}
+    }
+    return PRO.devId=st;
+}
+async function proCall(body){
+    if(!/^https?:/.test(PRO_CFG.scriptUrl)) throw new Error('config');
+    const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),20000);
+    try{
+        const r=await fetch(PRO_CFG.scriptUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({app:PRO_CFG.app},body)),signal:ctl.signal,redirect:'follow'});
+        return await r.json();
+    } finally { clearTimeout(to); }
+}
+const PRO_MSG={invalido:'Código não encontrado. Confira se digitou certo.',bloqueado:'Este código foi bloqueado. Fale com o suporte.',outro_dispositivo:'Este código já foi usado em outro aparelho. Cada código vale para um único aparelho.',dispositivo_invalido:'Não foi possível identificar este aparelho.',servidor:'Erro no servidor de ativação. Tente de novo em instantes.'};
+async function proActivate(raw){
+    const code=String(raw||'').trim(); if(!code) return {ok:false,msg:'Digite o código.'};
+    let dev; try{ dev=await proDevice(); }catch(e){ return {ok:false,msg:PRO_MSG.dispositivo_invalido}; }
+    let r; try{ r=await proCall({acao:'ativar',codigo:code,dispositivo:dev}); }
+    catch(e){ return {ok:false,msg:e.message==='config'?'O servidor de ativação ainda não foi configurado neste app.':'Sem conexão com o servidor. Conecte-se à internet e tente de novo.'}; }
+    if(r&&r.ok){ PRO.ok=true; PRO.code=code.toUpperCase(); PRO.dev=dev; PRO.last=Date.now(); proSave(); proRefresh(); return {ok:true,status:r.status}; }
+    return {ok:false,msg:PRO_MSG[r&&r.erro]||'Não foi possível ativar.'};
+}
+async function proInitPix(){
+    proLoad(); proRefresh();
+    try{
+        const dev=await proDevice();
+        if(PRO.ok){
+            if(Date.now()-PRO.last>24*3600e3){          // revalida 1x por dia; sem internet, continua liberado
+                try{
+                    const r=await proCall({acao:'verificar',codigo:PRO.code,dispositivo:PRO.dev||dev});
+                    if(r&&r.ok){ PRO.last=Date.now(); proSave(); }
+                    else if(r&&['bloqueado','outro_dispositivo','invalido'].includes(r.erro)){ PRO.ok=false; proSave(); proRefresh(); toast('O acesso Pro deste aparelho foi encerrado.'); }
+                }catch(e){}
+            }
+        } else if(PRO.native){                           // reinstalou ou limpou os dados: o Android ID é o mesmo → recupera sozinho
+            try{
+                const r=await proCall({acao:'restaurar',dispositivo:dev});
+                if(r&&r.ok&&r.codigo){ PRO.ok=true; PRO.code=r.codigo; PRO.dev=dev; PRO.last=Date.now(); proSave(); proRefresh(); toast('Acesso Pro restaurado neste aparelho ✓'); }
+            }catch(e){}
+        }
+    }catch(e){}
+}
+// ---- Pix "copia e cola" (BR Code estático, com valor) ----
+function proCrc16(s){ let c=0xFFFF; for(let i=0;i<s.length;i++){ c^=s.charCodeAt(i)<<8; for(let j=0;j<8;j++) c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF; } return c.toString(16).toUpperCase().padStart(4,'0'); }
+function proPixPayload(){
+    const clean=(t,n)=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase().slice(0,n);
+    const f=(id,v)=>id+String(v.length).padStart(2,'0')+v;
+    const mai=f('00','br.gov.bcb.pix')+f('01',String(PRO_CFG.pixKey).trim());
+    const amt=PRO_CFG.price>0?Number(PRO_CFG.price).toFixed(2):'';
+    let p=f('00','01')+f('26',mai)+f('52','0000')+f('53','986')+(amt?f('54',amt):'')+f('58','BR')+f('59',clean(PRO_CFG.pixName,25)||'RECEBEDOR')+f('60',clean(PRO_CFG.pixCity,15)||'BRASIL')+f('62',f('05','***'))+'6304';
+    return p+proCrc16(p);
+}
+function proCopy(txt,okMsg){
+    const done=()=>toast(okMsg);
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done,()=>proCopyOld(txt,done)); else proCopyOld(txt,done);
+}
+function proCopyOld(txt,done){ const t=document.createElement('textarea'); t.value=txt; t.style.position='fixed'; t.style.opacity='0'; document.body.appendChild(t); t.select(); try{ document.execCommand('copy'); done(); }catch(e){} t.remove(); }
+async function proRenderPix(){
+    const box=$('proBody'); if(!box) return;
+    const price=PRO_CFG.price>0?'R$ '+Number(PRO_CFG.price).toFixed(2).replace('.',','):'';
+    if(PRO.ok){
+        const dev=PRO.dev?PRO.dev.slice(0,10)+'…':'';
+        box.innerHTML='<div class="pro-ok">✓ Pro ativo neste aparelho</div><p class="pro-p">Todos os hinos estão liberados e completos.</p><p class="pro-p pro-small">Código: <b></b><br>Aparelho: '+proTxt(dev)+'<br>O acesso continua mesmo se você desinstalar o app ou limpar os dados (basta digitar o mesmo código neste aparelho, ou ele é restaurado sozinho no app instalado). O código não funciona em outro aparelho.</p>';
+        box.querySelector('b').textContent=PRO.code; return;
+    }
+    const keyOk=PRO_CFG.pixKey&&PRO_CFG.pixKey!=='SUA_CHAVE_PIX';
+    const configured=/^https?:/.test(PRO_CFG.scriptUrl)&&keyOk;
+    let dev=''; try{ dev=await proDevice(); }catch(e){}
+    const mt=proMsgTop();
+    box.innerHTML=(mt?'<div class="pro-top">'+mt+'</div>':'')+
+      '<p class="pro-p">'+proHeadTxt()+'<b>Pro:</b> todos os hinos completos, sem limite. Pagamento único via Pix'+(price?' · <b>'+price+'</b>':'')+'.</p>'+
+      (configured?'':'<p class="pro-p pro-warn">Atenção: o dono do app ainda não preencheu o arquivo pro-config.js (chave Pix e endereço do script).</p>')+
+      '<div class="pro-step"><span>1</span><div><b>Pague via Pix</b><div class="pro-row"><button class="pro-btn" id="proCopyPix">Copiar Pix copia e cola</button><button class="pro-btn sec" id="proCopyKey">Copiar chave</button></div><div class="pro-small" id="proKeyTxt"></div></div></div>'+
+      '<div class="pro-step"><span>2</span><div><b>Envie o comprovante</b><div class="pro-row"><a class="pro-btn" id="proWa" target="_blank" rel="noopener">Enviar no WhatsApp</a></div><div class="pro-small">Você recebe um código de uso único.</div></div></div>'+
+      '<div class="pro-step"><span>3</span><div><b>Digite o código</b><div class="pro-row"><input id="proCode" class="pro-code" placeholder="PRO-XXXX-XXXX" autocapitalize="characters" autocomplete="off" spellcheck="false"><button class="pro-btn" id="proGo">Ativar</button></div><div class="pro-msg" id="proMsg"></div></div></div>';
+    $('proKeyTxt').textContent=keyOk?'Chave: '+PRO_CFG.pixKey+(PRO_CFG.pixName?' · '+PRO_CFG.pixName:''):'';
+    $('proCopyPix').onclick=()=>{ try{ proCopy(proPixPayload(),'Pix copia e cola copiado! Cole no app do seu banco.'); }catch(e){ toast('Erro ao gerar o Pix'); } };
+    $('proCopyKey').onclick=()=>proCopy(String(PRO_CFG.pixKey),'Chave Pix copiada!');
+    const txt='Olá! Paguei o modo Pro do DH Tuba Game via Pix. Segue o comprovante. (aparelho '+String(dev).slice(0,10)+')';
+    $('proWa').href='https://wa.me/'+String(PRO_CFG.whatsapp).replace(/\D/g,'')+'?text='+encodeURIComponent(txt);
+    const go=async()=>{
+        const m=$('proMsg'), btn=$('proGo'); m.textContent='Verificando…'; m.className='pro-msg'; btn.disabled=true;
+        const r=await proActivate($('proCode').value);
+        btn.disabled=false;
+        if(r.ok){ toast(r.status==='restaurado'?'Acesso Pro restaurado neste aparelho ✓':'Pro ativado! Obrigado pelo apoio ✓'); proRender(); }
+        else { m.textContent=r.msg; m.className='pro-msg err'; }
+    };
+    $('proGo').onclick=go;
+    $('proCode').addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+}
+/*PIX-JS-END*/
+// ---- despacho por canal ----
+function proInit(){
+    if(proPlay()) return proInitPlay();
+    if(typeof proInitPix==='function') return proInitPix();
+    proLoad(); proRefresh();
+}
+function proRender(){
+    if(proPlay()) return proRenderPlay();
+    if(typeof proRenderPix==='function') return proRenderPix();
+}
+// limite de jogo do hino atual, em segundos (Infinity = sem limite)
+function proLimit(){
+    if(PRO.ok) return Infinity;
+    const n=CUR&&CUR.h?CUR.h.n:null; if(n==null||n<=proFree()) return Infinity;
+    if(proAdActive(n)) return Infinity;                 // hino liberado por anúncio (tempo limitado)
+    return PRO_CFG.previewSec;
+}
+// ---- interface ----
+let proReason='', proInGame=false;
+function proRefresh(){
+    const b=$('bPro'); if(b) b.textContent=PRO.ok?'✓ Pro ativo':'⭐ Pro';
+    const h=$('hPro'); if(h) h.textContent=PRO.ok?'✓':'⭐';
+    try{ if($('sHinos').classList.contains('on')) renderHinos(); }catch(e){}
+    try{ if($('mReady').classList.contains('on')) drawReady(); }catch(e){}
+    if($('mPro').classList.contains('on')) proRender();
+}
+function proPaywall(reason){ proReason=reason||''; $('mPro').classList.add('on'); proRender(); }
+function proClose(){
+    $('mPro').classList.remove('on');
+    if(proInGame){
+        proInGame=false;
+        if(G&&G.state==='pause'){
+            if(proLimit()===Infinity) resumeGame();          // liberou: continua de onde parou (com contagem)
+            else { stopGame(); closeModals(); back(); }      // não liberou: volta para a lista de hinos
+        }
+    }
+}
+// chamado pelo jogo quando a prévia grátis termina
+function proLimitHit(){
+    pauseGame(); $('mPause').classList.remove('on');
+    proInGame=true; proPaywall('fim');
+}
+$('bPro').onclick=()=>proPaywall('');
+$('hPro').onclick=()=>proPaywall('');
+$('proClose').onclick=proClose;
+$('mPro').addEventListener('click',e=>{ if(e.target.id==='mPro') proClose(); });
+
 /* ---------- início ---------- */
 $('bPlay').onclick=()=>go('sHinos');
 $('bSet').onclick=()=>go('sSet');
@@ -1000,6 +1295,7 @@ $('hClose').onclick=()=>$('mHow').classList.remove('on');
 if(!store.get('dht_seen',false)){setTimeout(()=>{$('mHow').classList.add('on');store.set('dht_seen',true);},400);}
 if('serviceWorker' in navigator&&location.protocol!=='file:'){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 setTimeout(()=>{try{initAudio();}catch(e){}},1200);
+proInit();
 
 </script>
 </body>

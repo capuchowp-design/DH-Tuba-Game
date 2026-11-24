@@ -18,3 +18,8 @@ Game estilo Guitar Hero para aprender os hinos na tuba.
 Suba tudo no GitHub Pages. A cada versão nova, mude `CACHE_NAME` em `sw.js`.
 Para o APK: Actions → "Gerar APK" (usa os mesmos *secrets* de assinatura dos outros apps).
 Os hinos ficam em `hinos/` (arquivos .mxl + `index.json`).
+
+## Modo Pro (bloqueio)
+- Site/PWA e APK: hinos 1–50 grátis, demais 15 s de prévia; Pro por Pix + código na planilha.
+- Google Play: hinos 1–10 grátis, demais por anúncio premiado (1 h) ou Pro pela Play.
+- Configuração em `pro-config.js`; passo a passo da Play em `PUBLICAR-PLAY.md`.

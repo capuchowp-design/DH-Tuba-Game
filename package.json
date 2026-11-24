@@ -1,10 +1,16 @@
 {
   "name": "dh-tuba-game",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
+  "scripts": {
+    "prepare:www": "node scripts/prepare-www.js"
+  },
   "dependencies": {
-    "@capacitor/android": "^7.0.0",
-    "@capacitor/cli": "^7.0.0",
-    "@capacitor/core": "^7.0.0"
+    "@capacitor-community/admob": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/device": "^8.0.0",
+    "@capgo/native-purchases": "^8.0.0"
   }
 }
