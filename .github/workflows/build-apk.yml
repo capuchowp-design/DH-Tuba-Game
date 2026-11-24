@@ -14,9 +14,8 @@ on:
         default: true
 
 env:
-  # ID do APP no AdMob (formato ca-app-pub-XXXX~YYYY). O valor abaixo é o de TESTE do Google.
-  # Para o build de produção da Play, troque pelo ID do app "DH Tuba Game" criado no AdMob.
-  ADMOB_APP_ID: ca-app-pub-3940256099942544~3347511713
+  # ID do APP no AdMob (DH Tuba Game).
+  ADMOB_APP_ID: ca-app-pub-4518875317226768~4605342767
 
 jobs:
   build:
