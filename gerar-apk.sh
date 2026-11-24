@@ -26,6 +26,8 @@ fi
 gh auth setup-git >/dev/null 2>&1                    # o git push passa a usar o seu login
 
 # 3) Envia o código para o GitHub (o workflow precisa estar lá)
+touch .gitignore
+for p in apk-out/ dh-keystore-backup/ '*.keystore'; do grep -qxF "$p" .gitignore || echo "$p" >> .gitignore; done   # nunca sobe APK nem chave
 if [ -n "$(git status --porcelain)" ]; then
   git add -A && git commit -q -m "Atualização do app" && echo "Alterações salvas."
 fi

@@ -8,7 +8,8 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script src="lib/Tone.js"></script>
+<script>window.Tone||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"><\/script>')</script>
 <style>
 :root{--gold:#e08a4a;--gold2:#ffdcbc;--gold3:#8f4f1e;--bg:#07110d;--card:#101c16;--line:#24402f;--txt:#eef5ee;--mut:#8fa89a;--ok:#4be3b5;--bad:#ff6b6b}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -595,14 +596,19 @@ const SAMPLE_BASES=['https://nbrosowsky.github.io/tonejs-instruments/samples/tub
 function rawCtx(){return (window.Tone?Tone.getContext().rawContext:(AU.own||(AU.own=new (window.AudioContext||window.webkitAudioContext)())));}
 function setBadge(){const el=$('rSnd');if(!el)return;
     el.innerHTML=AU.mode==='trumpet'?'<i class="ok"></i>Som: tuba':AU.mode==='synth'?'<i></i>Som: sintetizador (tuba carrega em segundo plano)':'<i></i>Carregando som da tuba…';}
+const LOCAL_BASE='sons/tuba/';
+async function localSamples(){   // lista gerada por baixar-sons.sh em sons/tuba/index.json
+    try{const r=await fetch(LOCAL_BASE+'index.json');if(!r.ok)return null;const names=await r.json();const u={};
+        names.forEach(n=>{u[n.replace('s','#')]=n+'.mp3';});return Object.keys(u).length>=8?u:null;}catch(e){return null;}
+}
 async function probe(base){
     const names=[];for(let o=0;o<=6;o++)['C','Cs','D','Ds','E','F','Fs','G','Gs','A','As','B'].forEach(n=>names.push(n+o));
     const ok=await Promise.all(names.map(n=>fetch(base+n+'.mp3',{method:'HEAD'}).then(r=>r.ok?n:null).catch(()=>null)));
     const u={};ok.filter(Boolean).forEach(n=>{u[n.replace('s','#')]=n+'.mp3';});
     if(!Object.keys(u).length)throw new Error('sem amostras');return u;
 }
-function loadSampler(base,out){
-    return probe(base).then(urls=>new Promise((res,rej)=>{let done=false;const t=setTimeout(()=>{if(!done){done=true;rej(new Error('timeout'));}},45000);let smp;
+function loadSampler(base,out,known){
+    return (known?Promise.resolve(known):probe(base)).then(urls=>new Promise((res,rej)=>{let done=false;const t=setTimeout(()=>{if(!done){done=true;rej(new Error('timeout'));}},45000);let smp;
         try{smp=new Tone.Sampler({urls,baseUrl:base,release:.5,onload:()=>{if(done){try{smp.dispose();}catch(e){}return;}done=true;clearTimeout(t);res(smp);},onerror:e=>{if(!done){done=true;clearTimeout(t);rej(e||new Error('erro'));}}}).connect(out);}
         catch(e){if(!done){done=true;clearTimeout(t);rej(e);}}}));
 }
@@ -618,8 +624,14 @@ function initAudio(){
         let out=Tone.getDestination();
         try{const lim=new Tone.Limiter(-1).connect(out);const rev=new Tone.Reverb({decay:2,preDelay:.012,wet:.14}).connect(lim);await rev.generate();out=rev;}catch(e){}
         AU.out=out;
-        const job=(async()=>{for(const b of SAMPLE_BASES){try{const s=await loadSampler(b,out);AU.sampler=s;AU.mode='trumpet';AU.ready=true;applyVol();
-                if(AU.synth){const o=AU.synth;setTimeout(()=>{try{o.releaseAll();o.dispose();}catch(e){}},2500);AU.synth=null;}setBadge();return true;}catch(e){}}return false;})();
+        const okSampler=s=>{AU.sampler=s;AU.mode='trumpet';AU.ready=true;applyVol();
+            if(AU.synth){const o=AU.synth;setTimeout(()=>{try{o.releaseAll();o.dispose();}catch(e){}},2500);AU.synth=null;}setBadge();return true;};
+        // 1º: sons gravados dentro do app (funcionam sem internet); 2º: sons da internet
+        const job=(async()=>{
+            const loc=await localSamples();
+            if(loc){try{return okSampler(await loadSampler(LOCAL_BASE,out,loc));}catch(e){}}
+            for(const b of SAMPLE_BASES){try{return okSampler(await loadSampler(b,out));}catch(e){}}
+            return false;})();
         const r=await Promise.race([job,new Promise(x=>setTimeout(()=>x(null),7000))]);
         if(r===null||r===false)useSynth(out);
         job.then(ok=>{if(!ok&&!AU.sampler){useSynth(out);AU.promise=null;}});
