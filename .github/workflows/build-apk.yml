@@ -2,10 +2,28 @@ name: Gerar APK
 
 on:
   workflow_dispatch:
+    inputs:
+      canal:
+        description: "play = pacote AAB da Google Play | apkpure = APK com Pix (site/APKPure)"
+        type: choice
+        options: [apkpure, play]
+        default: apkpure
+      anuncios_teste:
+        description: "Anúncios de TESTE do Google (desmarque só no build de produção da Play)"
+        type: boolean
+        default: true
+
+env:
+  # ID do APP no AdMob (formato ca-app-pub-XXXX~YYYY). O valor abaixo é o de TESTE do Google.
+  # Para o build de produção da Play, troque pelo ID do app "DH Tuba Game" criado no AdMob.
+  ADMOB_APP_ID: ca-app-pub-3940256099942544~3347511713
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      CANAL: ${{ inputs.canal }}
+      ADS_TESTE: ${{ inputs.anuncios_teste }}
     steps:
       - uses: actions/checkout@v4
 
@@ -18,26 +36,29 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Conferir produção da Play
+        if: ${{ inputs.canal == 'play' && inputs.anuncios_teste == false }}
+        run: |
+          if echo "$ADMOB_APP_ID" | grep -q "3940256099942544"; then echo "ERRO: troque ADMOB_APP_ID (neste arquivo) pelo ID real do AdMob antes do build de produção."; exit 1; fi
+          if grep -q "3940256099942544" pro-config.js; then echo "ERRO: troque adRewardedId em pro-config.js pelo bloco premiado real do AdMob."; exit 1; fi
+
       - name: Instalar dependências
         run: npm install
 
       - name: Montar pasta www
-        run: |
-          rm -rf www && mkdir www
-          for f in *.html *.js *.json *.png *.svg *.css *.webp *.jpg *.ico *.mid *.midi; do
-            [ -f "$f" ] || continue
-            case "$f" in package.json|package-lock.json|capacitor.config.json) continue;; esac
-            cp "$f" www/
-          done
-          [ -d hinos ] && cp -r hinos www/hinos || true
-          [ -d sons ] && cp -r sons www/sons || true
-          [ -d lib ] && cp -r lib www/lib || true
-          ls www
+        run: node scripts/prepare-www.js
 
       - name: Criar projeto Android
         run: |
           npx cap add android
           npx cap sync android
+
+      - name: AdMob e permissões
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i "s#</application>#    <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"$ADMOB_APP_ID\"/>\n    </application>#" $M
+          sed -i "s#</manifest>#    <uses-permission android:name=\"com.google.android.gms.permission.AD_ID\"/>\n    <uses-permission android:name=\"com.android.vending.BILLING\"/>\n</manifest>#" $M
+          grep -n "APPLICATION_ID\|AD_ID\|BILLING" $M
 
       - name: Ícone do app
         run: |
@@ -55,13 +76,16 @@ jobs:
           sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
           sed -i "s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
 
-      - name: Compilar (release)
+      # ---------- APK (site / APKPure) ----------
+      - name: Compilar APK
+        if: ${{ inputs.canal != 'play' }}
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease
 
-      - name: Assinar
+      - name: Assinar APK
+        if: ${{ inputs.canal != 'play' }}
         env:
           KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
           KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -87,6 +111,36 @@ jobs:
           fi
 
       - uses: actions/upload-artifact@v4
+        if: ${{ inputs.canal != 'play' }}
         with:
           name: dh-tuba-game-apk
           path: dh-tuba-game.apk
+
+      # ---------- AAB (Google Play) ----------
+      - name: Compilar AAB
+        if: ${{ inputs.canal == 'play' }}
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease
+
+      - name: Assinar AAB
+        if: ${{ inputs.canal == 'play' }}
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KS_B64" ]; then echo "ERRO: a Play exige o AAB assinado. Configure os secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD e KEY_ALIAS."; exit 1; fi
+          echo "$KS_B64" | base64 -d > release.keystore
+          jarsigner -keystore release.keystore -storepass "$KS_PASS" -keypass "$KS_PASS" \
+            -sigalg SHA256withRSA -digestalg SHA-256 \
+            -signedjar dh-tuba-game.aab android/app/build/outputs/bundle/release/app-release.aab "$KS_ALIAS"
+          jarsigner -verify dh-tuba-game.aab | head -3
+          echo "AAB assinado com a SUA chave."
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.canal == 'play' }}
+        with:
+          name: dh-tuba-game-aab
+          path: dh-tuba-game.aab
